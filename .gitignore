@@ -1,0 +1,33 @@
+# ---- Node / Next.js ----
+node_modules/
+web/.next/
+web/out/
+web/next-env.d.ts
+.DS_Store
+*.log
+
+# ---- Terraform ----
+# Diretórios de plugins/baixados e crash logs
+**/.terraform/
+*.tfplan
+crash.log
+crash.*.log
+
+# Arquivos de ESTADO: NUNCA commitar (podem conter segredos em texto puro)
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# Variáveis locais (podem conter dados sensíveis). Versionamos só os .example
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+
+# Lockfile do provider: ESTE deve ser commitado (garante versões reproduzíveis)
+!**/.terraform.lock.hcl
+
+# ---- Credenciais / segredos ----
+.env
+.env.*
+*.pem
+credentials

@@ -1,0 +1,8 @@
+# Copie para terraform.tfvars e ajuste se quiser sobrescrever os defaults.
+# (terraform.tfvars está no .gitignore e NÃO vai para o repositório.)
+
+aws_region       = "us-east-1"
+project_name     = "portfolio-terraform"
+site_bucket_name = "luizbortoluzzi-terraform-trainning" # precisa ser único no mundo
+github_owner     = "luizbortoluzzi"
+github_repo      = "terraform-trainning"
