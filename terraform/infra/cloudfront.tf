@@ -37,6 +37,13 @@ resource "aws_cloudfront_function" "rewrite_index" {
       return request;
     }
   EOT
+
+  # Quando a função for recriada (ex.: ao mudar o nome), cria a nova ANTES de
+  # apagar a antiga. Sem isso, o CloudFront recusa apagar uma função que ainda
+  # está associada à distribuição (erro FunctionInUse).
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "aws_cloudfront_distribution" "site" {

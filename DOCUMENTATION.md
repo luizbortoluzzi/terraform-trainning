@@ -196,8 +196,8 @@ terraform apply     # digite "yes" para confirmar
 Saída esperada (outputs):
 
 ```
-state_bucket_name = "luizbortoluzzi-tfstate-portfolio"
-lock_table_name   = "terraform-lock-portfolio"
+state_bucket_name = "luizbortoluzzi-terraform-trainning-tfstate"
+lock_table_name   = "terraform-trainning-lock"
 ```
 
 > 🔴 **O nome do bucket precisa ser único no mundo todo.** Se der erro de nome
@@ -235,8 +235,8 @@ Anote os **outputs** (vamos usá-los no GitHub):
 ```
 cloudfront_url             = "https://d123abc.cloudfront.net"
 cloudfront_distribution_id = "E1XXXXXXXXXXXX"
-site_bucket_name           = "luizbortoluzzi-portfolio-site"
-github_actions_role_arn    = "arn:aws:iam::123456789012:role/portfolio-terraform-github-actions"
+site_bucket_name           = "luizbortoluzzi-terraform-trainning"
+github_actions_role_arn    = "arn:aws:iam::123456789012:role/terraform-trainning-github-actions"
 ```
 
 Para reexibir depois: `terraform output`.

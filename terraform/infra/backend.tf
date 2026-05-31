@@ -9,10 +9,10 @@
 
 terraform {
   backend "s3" {
-    bucket         = "luizbortoluzzi-tfstate-portfolio"
+    bucket         = "luizbortoluzzi-terraform-trainning-tfstate"
     key            = "infra/terraform.tfstate"
     region         = "us-east-1"
-    dynamodb_table = "terraform-lock-portfolio"
+    dynamodb_table = "terraform-trainning-lock"
     encrypt        = true
   }
 }

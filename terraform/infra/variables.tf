@@ -7,7 +7,7 @@ variable "aws_region" {
 variable "project_name" {
   description = "Nome do projeto, usado em nomes de recursos e tags."
   type        = string
-  default     = "portfolio-terraform"
+  default     = "terraform-trainning"
 }
 
 variable "site_bucket_name" {
