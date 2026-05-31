@@ -1,29 +1,29 @@
 variable "aws_region" {
-  description = "Região AWS onde o bucket do site será criado (a entrega é global via CloudFront)."
+  description = "AWS region where the site bucket will be created (delivery is global via CloudFront)."
   type        = string
   default     = "us-east-1"
 }
 
 variable "project_name" {
-  description = "Nome do projeto, usado em nomes de recursos e tags."
+  description = "Project name, used in resource names and tags."
   type        = string
   default     = "terraform-trainning"
 }
 
 variable "site_bucket_name" {
-  description = "Nome do bucket S3 que guarda os arquivos do site. PRECISA ser único no mundo."
+  description = "Name of the S3 bucket that holds the site files. MUST be globally unique."
   type        = string
   default     = "luizbortoluzzi-terraform-trainning"
 }
 
 variable "github_owner" {
-  description = "Dono do repositório no GitHub (usuário ou organização)."
+  description = "GitHub repository owner (user or organization)."
   type        = string
   default     = "luizbortoluzzi"
 }
 
 variable "github_repo" {
-  description = "Nome do repositório no GitHub que terá permissão de deploy via OIDC."
+  description = "Name of the GitHub repository allowed to deploy via OIDC."
   type        = string
   default     = "terraform-trainning"
 }

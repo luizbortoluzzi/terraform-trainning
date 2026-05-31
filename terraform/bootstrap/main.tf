@@ -1,13 +1,13 @@
 ###############################################################################
 # BOOTSTRAP
 #
-# Cria a infraestrutura que ARMAZENA o estado do Terraform:
-#   - 1 bucket S3 (guarda o arquivo terraform.tfstate, versionado e criptografado)
-#   - 1 tabela DynamoDB (faz o "lock" pra dois `apply` não rodarem ao mesmo tempo)
+# Creates the infrastructure that STORES the Terraform state:
+#   - 1 S3 bucket (holds the terraform.tfstate file, versioned and encrypted)
+#   - 1 DynamoDB table (the "lock" so two applies can't run at the same time)
 #
-# Este módulo usa ESTADO LOCAL (terraform.tfstate aqui na pasta), porque o
-# backend remoto ainda não existe no momento em que rodamos isto. É o clássico
-# problema do ovo-e-a-galinha. Roda uma vez e raramente muda.
+# This module uses LOCAL state (terraform.tfstate right here in this folder),
+# because the remote backend does not exist yet at the moment we run this. It's
+# the classic chicken-and-egg problem. Runs once and rarely changes.
 ###############################################################################
 
 terraform {
@@ -24,8 +24,8 @@ terraform {
 provider "aws" {
   region = var.aws_region
 
-  # Tags aplicadas a todo recurso criado por este provider — ótimo pra
-  # rastrear custos e saber o que é do projeto.
+  # Tags applied to every resource created by this provider — great for
+  # tracking costs and knowing what belongs to the project.
   default_tags {
     tags = {
       Project   = var.project_name
@@ -36,19 +36,19 @@ provider "aws" {
 }
 
 # ---------------------------------------------------------------------------
-# Bucket S3 que guarda o estado do Terraform
+# S3 bucket that holds the Terraform state
 # ---------------------------------------------------------------------------
 resource "aws_s3_bucket" "tfstate" {
   bucket = var.state_bucket_name
 
-  # Proteção contra `terraform destroy` apagar o bucket de estado sem querer.
+  # Protects against `terraform destroy` accidentally wiping the state bucket.
   lifecycle {
     prevent_destroy = true
   }
 }
 
-# Versionamento: mantém histórico do estado. Se um apply corromper algo,
-# dá pra voltar a uma versão anterior.
+# Versioning: keeps a history of the state. If an apply corrupts something,
+# you can roll back to a previous version.
 resource "aws_s3_bucket_versioning" "tfstate" {
   bucket = aws_s3_bucket.tfstate.id
   versioning_configuration {
@@ -56,7 +56,7 @@ resource "aws_s3_bucket_versioning" "tfstate" {
   }
 }
 
-# Criptografia em repouso (SSE-S3 / AES256), sem custo extra.
+# Encryption at rest (SSE-S3 / AES256), at no extra cost.
 resource "aws_s3_bucket_server_side_encryption_configuration" "tfstate" {
   bucket = aws_s3_bucket.tfstate.id
   rule {
@@ -66,7 +66,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "tfstate" {
   }
 }
 
-# Bloqueia QUALQUER acesso público ao bucket de estado.
+# Blocks ANY public access to the state bucket.
 resource "aws_s3_bucket_public_access_block" "tfstate" {
   bucket                  = aws_s3_bucket.tfstate.id
   block_public_acls       = true
@@ -76,10 +76,10 @@ resource "aws_s3_bucket_public_access_block" "tfstate" {
 }
 
 # ---------------------------------------------------------------------------
-# Tabela DynamoDB pro lock do estado
+# DynamoDB table for state locking
 # ---------------------------------------------------------------------------
-# PAY_PER_REQUEST = cobra por uso. Como o lock é usado só durante apply/plan,
-# o uso é mínimo e fica dentro do free tier.
+# PAY_PER_REQUEST = billed per use. Since the lock is only used during
+# apply/plan, usage is minimal and stays within the free tier.
 resource "aws_dynamodb_table" "tflock" {
   name         = var.lock_table_name
   billing_mode = "PAY_PER_REQUEST"

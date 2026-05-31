@@ -1,17 +1,17 @@
 ###############################################################################
-# BUCKET S3 DO SITE
+# SITE S3 BUCKET
 #
-# O bucket é 100% PRIVADO. Ninguém acessa o S3 direto pela internet — só o
-# CloudFront, via OAC (Origin Access Control). Isso é mais seguro do que
-# deixar o bucket público.
+# The bucket is 100% PRIVATE. Nobody accesses S3 directly from the internet —
+# only CloudFront, via OAC (Origin Access Control). This is safer than making
+# the bucket public.
 ###############################################################################
 
 resource "aws_s3_bucket" "site" {
   bucket = var.site_bucket_name
 }
 
-# Bloqueia todo acesso público. O acesso é liberado SÓ pro CloudFront, mais
-# abaixo, via bucket policy com condição de SourceArn.
+# Blocks all public access. Access is granted ONLY to CloudFront, further
+# below, via a bucket policy with a SourceArn condition.
 resource "aws_s3_bucket_public_access_block" "site" {
   bucket                  = aws_s3_bucket.site.id
   block_public_acls       = true
@@ -20,7 +20,7 @@ resource "aws_s3_bucket_public_access_block" "site" {
   restrict_public_buckets = true
 }
 
-# Criptografia em repouso, sem custo.
+# Encryption at rest, at no cost.
 resource "aws_s3_bucket_server_side_encryption_configuration" "site" {
   bucket = aws_s3_bucket.site.id
   rule {
@@ -30,9 +30,9 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "site" {
   }
 }
 
-# Política do bucket: permite que SOMENTE esta distribuição do CloudFront
-# leia os objetos. A condição AWS:SourceArn impede que outra distribuição
-# (ou outra conta) consiga ler.
+# Bucket policy: allows ONLY this CloudFront distribution to read the objects.
+# The AWS:SourceArn condition prevents another distribution (or another
+# account) from reading them.
 data "aws_iam_policy_document" "site_bucket_policy" {
   statement {
     sid       = "AllowCloudFrontRead"

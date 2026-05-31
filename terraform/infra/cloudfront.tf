@@ -1,29 +1,29 @@
 ###############################################################################
 # CLOUDFRONT (CDN + HTTPS)
 #
-# Distribui o site globalmente, com HTTPS grátis no domínio *.cloudfront.net.
-# Usa OAC para acessar o bucket S3 privado de forma autenticada.
+# Distributes the site globally, with free HTTPS on the *.cloudfront.net domain.
+# Uses OAC to access the private S3 bucket in an authenticated way.
 ###############################################################################
 
-# OAC = Origin Access Control. É a forma moderna (substitui o antigo OAI) de o
-# CloudFront acessar um bucket S3 privado assinando as requisições com SigV4.
+# OAC = Origin Access Control. The modern way (replaces the old OAI) for
+# CloudFront to access a private S3 bucket, signing requests with SigV4.
 resource "aws_cloudfront_origin_access_control" "site" {
   name                              = "${var.project_name}-oac"
-  description                       = "OAC para o bucket do site"
+  description                       = "OAC for the site bucket"
   origin_access_control_origin_type = "s3"
   signing_behavior                  = "always"
   signing_protocol                  = "sigv4"
 }
 
-# Função CloudFront (roda na borda) que reescreve a URL:
-#   /            -> /index.html  (já coberto por default_root_object, mas garante)
-#   /sobre/      -> /sobre/index.html
-# Necessário porque o Next com trailingSlash gera index.html dentro de pastas,
-# e o origin S3 (REST) não resolve "index de diretório" sozinho.
+# CloudFront Function (runs at the edge) that rewrites the URL:
+#   /            -> /index.html  (already covered by default_root_object, but be safe)
+#   /about/      -> /about/index.html
+# Needed because Next with trailingSlash generates index.html inside folders,
+# and the S3 (REST) origin does not resolve a "directory index" on its own.
 resource "aws_cloudfront_function" "rewrite_index" {
   name    = "${var.project_name}-rewrite-index"
   runtime = "cloudfront-js-2.0"
-  comment = "Reescreve URLs de diretório para /index.html"
+  comment = "Rewrites directory URLs to /index.html"
   publish = true
   code    = <<-EOT
     function handler(event) {
@@ -38,9 +38,9 @@ resource "aws_cloudfront_function" "rewrite_index" {
     }
   EOT
 
-  # Quando a função for recriada (ex.: ao mudar o nome), cria a nova ANTES de
-  # apagar a antiga. Sem isso, o CloudFront recusa apagar uma função que ainda
-  # está associada à distribuição (erro FunctionInUse).
+  # When the function is recreated (e.g. on a name change), create the new one
+  # BEFORE deleting the old. Without this, CloudFront refuses to delete a
+  # function still associated with the distribution (FunctionInUse error).
   lifecycle {
     create_before_destroy = true
   }
@@ -49,11 +49,11 @@ resource "aws_cloudfront_function" "rewrite_index" {
 resource "aws_cloudfront_distribution" "site" {
   enabled             = true
   default_root_object = "index.html"
-  comment             = "${var.project_name} - site estático"
+  comment             = "${var.project_name} - static site"
 
-  # PriceClass_100 = só edges mais baratas (EUA, Canadá, Europa). Reduz custo
-  # e continua atendendo o mundo todo (com latência um pouco maior fora dessas
-  # regiões). Troque para PriceClass_All se quiser todas as edges.
+  # PriceClass_100 = only the cheapest edges (US, Canada, Europe). Lowers cost
+  # and still serves the whole world (with slightly higher latency outside
+  # those regions). Switch to PriceClass_All for all edges.
   price_class = "PriceClass_100"
 
   origin {
@@ -64,12 +64,12 @@ resource "aws_cloudfront_distribution" "site" {
 
   default_cache_behavior {
     target_origin_id       = "s3-${aws_s3_bucket.site.id}"
-    viewer_protocol_policy = "redirect-to-https" # força HTTPS
+    viewer_protocol_policy = "redirect-to-https" # force HTTPS
     allowed_methods        = ["GET", "HEAD"]
     cached_methods         = ["GET", "HEAD"]
     compress               = true
 
-    # Política de cache gerenciada pela AWS "CachingOptimized" (ID fixo global).
+    # AWS-managed "CachingOptimized" cache policy (fixed global ID).
     cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6"
 
     function_association {
@@ -78,7 +78,7 @@ resource "aws_cloudfront_distribution" "site" {
     }
   }
 
-  # SPA/404: se o objeto não existir, devolve a página 404 do Next.
+  # SPA/404: if the object does not exist, return Next's 404 page.
   custom_error_response {
     error_code         = 403
     response_code      = 404
@@ -96,7 +96,7 @@ resource "aws_cloudfront_distribution" "site" {
     }
   }
 
-  # Certificado HTTPS padrão do CloudFront (*.cloudfront.net), grátis.
+  # Default CloudFront HTTPS certificate (*.cloudfront.net), free.
   viewer_certificate {
     cloudfront_default_certificate = true
   }

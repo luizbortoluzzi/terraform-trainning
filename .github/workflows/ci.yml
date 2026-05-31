@@ -1,7 +1,7 @@
 name: CI
 
-# Roda em Pull Requests e em pushes para qualquer branch que NÃO seja main.
-# Serve para validar antes de mergear: o site builda? o Terraform está válido?
+# Runs on Pull Requests and on pushes to any branch that is NOT main.
+# Used to validate before merging: does the site build? is Terraform valid?
 on:
   pull_request:
   push:
@@ -10,7 +10,7 @@ on:
 
 jobs:
   web:
-    name: Build & lint do site
+    name: Build & lint the site
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,7 +21,7 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
 
-      - name: Instalar dependências
+      - name: Install dependencies
         working-directory: web
         run: npm ci
 
@@ -29,12 +29,12 @@ jobs:
         working-directory: web
         run: npm run lint
 
-      - name: Build (export estático)
+      - name: Build (static export)
         working-directory: web
         run: npm run build
 
   terraform:
-    name: Validar Terraform
+    name: Validate Terraform
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -43,16 +43,16 @@ jobs:
         with:
           terraform_version: "1.15.5"
 
-      - name: Checar formatação
+      - name: Check formatting
         run: terraform fmt -check -recursive terraform/
 
-      - name: Validar bootstrap
+      - name: Validate bootstrap
         working-directory: terraform/bootstrap
         run: |
           terraform init -backend=false -input=false
           terraform validate
 
-      - name: Validar infra
+      - name: Validate infra
         working-directory: terraform/infra
         run: |
           terraform init -backend=false -input=false

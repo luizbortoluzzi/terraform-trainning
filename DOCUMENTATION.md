@@ -1,75 +1,79 @@
-# 📘 Documentação — Portfólio Next.js na AWS com Terraform + CI/CD
+# 📘 Documentation — Next.js Portfolio on AWS with Terraform + CI/CD
 
-Este documento explica, **passo a passo**, como este projeto foi construído e
-como colocá-lo no ar. A ideia é servir tanto de portfólio quanto de material de
-estudo de **Terraform**, **AWS** e **CI/CD com GitHub Actions** — tudo dentro do
-**free tier** da AWS.
+This document explains, **step by step**, how this project was built and how to
+get it live. The idea is to serve both as a portfolio and as study material for
+**Terraform**, **AWS**, and **CI/CD with GitHub Actions** — all within AWS's
+**free tier**.
 
 ---
 
-## 1. Visão geral
+## 1. Overview
 
-Um site estático (Next.js + TypeScript) hospedado na AWS, com infraestrutura
-100% descrita em Terraform e deploy automático a cada push na `main`.
+A static site (Next.js + TypeScript) hosted on AWS, with infrastructure
+100% described in Terraform and automatic deployment on every push to `main`.
 
-### Arquitetura
+### Architecture
 
 ```
- Você (git push main)
+ You (git push main)
         │
         ▼
- ┌─────────────────────┐     OIDC (token temporário, sem chave fixa)
+ ┌─────────────────────┐     OIDC (temporary token, no static key)
  │   GitHub Actions     │ ─────────────────────────────────────────┐
  │  1. build Next.js    │                                           ▼
  │  2. aws s3 sync       │                                  ┌──────────────┐
- │  3. invalidate CF     │ ────────────────────────────────▶│  AWS (conta) │
+ │  3. invalidate CF     │ ────────────────────────────────▶│  AWS (account)│
  └─────────────────────┘                                   └──────────────┘
                                                                    │
                   ┌────────────────────────────────────────────────┤
                   ▼                                                  ▼
-        ┌──────────────────┐   OAC (privado)        ┌────────────────────────┐
-        │  S3 (bucket do   │◀───────────────────────│  CloudFront (CDN+HTTPS) │
-        │  site, PRIVADO)  │                         └────────────────────────┘
+        ┌──────────────────┐   OAC (private)        ┌────────────────────────┐
+        │  S3 (site        │◀───────────────────────│  CloudFront (CDN+HTTPS) │
+        │  bucket, PRIVATE)│                         └────────────────────────┘
         └──────────────────┘                                       │
                                                                    ▼
-                                                        usuário final acessa
+                                                        end user accesses
                                                        https://xxxx.cloudfront.net
 ```
 
-### Por que cada peça?
+### Why each piece?
 
-| Componente | Papel | Por que é grátis (free tier) |
+| Component | Role | Why it's free (free tier) |
 |---|---|---|
-| **S3** | Guarda os arquivos do site (bucket privado) | 5 GB grátis/12 meses; depois centavos para um site pequeno |
-| **CloudFront** | CDN global + HTTPS grátis | 1 TB de transferência/mês grátis (permanente) |
-| **OAC** | Deixa só o CloudFront ler o S3 | Sem custo |
-| **DynamoDB** | Lock do estado do Terraform | 25 GB grátis (permanente); uso mínimo |
-| **IAM + OIDC** | Deploy sem chave fixa | Sem custo |
-| **GitHub Actions** | Pipeline de CI/CD | Grátis para repositórios públicos |
+| **S3** | Stores the site's files (private bucket) | 5 GB free for 12 months; then cents for a small site |
+| **CloudFront** | Global CDN + free HTTPS | 1 TB of transfer/month free (permanent) |
+| **OAC** | Lets only CloudFront read S3 | No cost |
+| **DynamoDB** | Terraform state lock | 25 GB free (permanent); minimal usage |
+| **IAM + OIDC** | Deploy without a static key | No cost |
+| **GitHub Actions** | CI/CD pipeline | Free for public repositories |
 
-> 💡 Não usamos domínio próprio (Route 53 custa US$ 0,50/mês por hosted zone).
-> Acessamos pela URL padrão `*.cloudfront.net`, que já vem com HTTPS grátis.
+> 💡 We don't use a custom domain (Route 53 costs US$ 0.50/month per hosted zone).
+> We access it through the default `*.cloudfront.net` URL, which already comes with
+> free HTTPS.
 
 ---
 
-## 2. Estrutura do repositório
+## 2. Repository structure
 
 ```
 terraform-trainning/
-├── DOCUMENTATION.md            ← este arquivo
+├── DOCUMENTATION.md            ← this file
 ├── README.md
-├── .gitignore                  ← ignora tfstate, node_modules, segredos
-├── web/                        ← aplicação Next.js + TypeScript
-│   ├── src/app/page.tsx        ← a página do portfólio
-│   ├── next.config.ts          ← output: "export" (gera site estático)
+├── .gitignore                  ← ignores tfstate, node_modules, secrets
+├── web/                        ← Next.js + TypeScript application (i18n: en/pt)
+│   ├── src/app/page.tsx        ← root "/" → redirects to the default locale
+│   ├── src/app/[locale]/page.tsx   ← the portfolio page (per language)
+│   ├── src/messages/{en,pt}.json   ← translation catalogs
+│   ├── src/i18n/               ← next-intl config (routing, request)
+│   ├── next.config.ts          ← output: "export" (generates static site)
 │   └── ...
 ├── terraform/
-│   ├── bootstrap/              ← cria o bucket de estado + lock (roda 1x)
+│   ├── bootstrap/              ← creates the state bucket + lock (runs once)
 │   │   ├── main.tf
 │   │   ├── variables.tf
 │   │   └── outputs.tf
 │   └── infra/                  ← S3 + CloudFront + OAC + OIDC/IAM
-│       ├── backend.tf          ← estado remoto no S3
+│       ├── backend.tf          ← remote state in S3
 │       ├── providers.tf
 │       ├── variables.tf
 │       ├── s3.tf
@@ -78,159 +82,177 @@ terraform-trainning/
 │       ├── outputs.tf
 │       └── terraform.tfvars.example
 └── .github/workflows/
-    ├── ci.yml                  ← valida build + Terraform em PRs
-    └── deploy.yml              ← publica na AWS no push da main
+    ├── ci.yml                  ← validates build + Terraform on PRs
+    └── deploy.yml              ← publishes to AWS on push to main
 ```
 
 ---
 
-## 3. Pré-requisitos
+## 3. Prerequisites
 
-| Ferramenta | Versão usada | Como verificar |
+| Tool | Version used | How to check |
 |---|---|---|
-| Node.js | 20+ (aqui: v24) | `node --version` |
-| Terraform | 1.6+ (aqui: v1.15.5) | `terraform version` |
-| AWS CLI | v2 (aqui: v2.34) | `aws --version` |
-| Conta AWS | — | acesso ao console |
-| Conta GitHub | — | repositório criado |
+| Node.js | 20+ (here: v24) | `node --version` |
+| Terraform | 1.6+ (here: v1.15.5) | `terraform version` |
+| AWS CLI | v2 (here: v2.34) | `aws --version` |
+| AWS account | — | console access |
+| GitHub account | — | repository created |
 
-> As ferramentas (Terraform e AWS CLI) foram instaladas em `~/.local/bin` para
-> não precisar de `sudo`. Se você for refazer em outra máquina, baixe o
-> Terraform de [releases.hashicorp.com](https://releases.hashicorp.com/terraform/)
-> e a AWS CLI de [aws.amazon.com/cli](https://aws.amazon.com/cli/).
+> The tools (Terraform and AWS CLI) were installed in `~/.local/bin` so as not
+> to require `sudo`. If you redo this on another machine, download Terraform
+> from [releases.hashicorp.com](https://releases.hashicorp.com/terraform/)
+> and the AWS CLI from [aws.amazon.com/cli](https://aws.amazon.com/cli/).
 
 ---
 
-## 4. O app Next.js (a parte fácil)
+## 4. The Next.js app (the easy part)
 
-O site é um Next.js criado com `create-next-app` (TypeScript + Tailwind), com
-uma mudança chave em [`web/next.config.ts`](web/next.config.ts):
+The site is a Next.js app created with `create-next-app` (TypeScript + Tailwind),
+with one key change in [`web/next.config.ts`](web/next.config.ts):
 
 ```ts
 const nextConfig: NextConfig = {
-  output: "export",          // gera HTML/CSS/JS puro na pasta out/
+  output: "export",          // generates plain HTML/CSS/JS in the out/ folder
   images: { unoptimized: true },
-  trailingSlash: true,       // /rota/ -> /rota/index.html
+  trailingSlash: true,       // /route/ -> /route/index.html
 };
 ```
 
-`output: "export"` é o que permite rodar o Next **sem servidor Node** — ele vira
-um punhado de arquivos estáticos, perfeito para S3 + CloudFront.
+`output: "export"` is what allows running Next **without a Node server** — it
+becomes a handful of static files, perfect for S3 + CloudFront.
 
-**Rodar localmente:**
+### Internationalization (English + Portuguese)
+
+The site is bilingual using [`next-intl`](https://next-intl.dev). Because a
+static export has **no middleware**, i18n is done with a `[locale]` route
+segment instead:
+
+- `src/i18n/routing.ts` declares the locales (`en`, `pt`) and the default.
+- `src/i18n/request.ts` loads the matching catalog from `src/messages/*.json`.
+- `src/app/[locale]/layout.tsx` calls `generateStaticParams()` + `setRequestLocale()`,
+  so `/en` and `/pt` are pre-rendered as static HTML at build time.
+- `src/app/page.tsx` (root `/`) renders a `<meta refresh>` that forwards to the
+  default locale — works even without JavaScript.
+- A `LanguageSwitcher` client component swaps the language while keeping the path.
+
+To add a language: add the locale to `routing.ts` and create its
+`src/messages/<locale>.json`. That's it.
+
+**Run locally:**
 
 ```bash
 cd web
 npm install
-npm run dev        # http://localhost:3000  (modo desenvolvimento)
-npm run build      # gera a pasta web/out/  (o que vai pro S3)
+npm run dev        # http://localhost:3000  (development mode)
+npm run build      # generates the web/out/ folder  (what goes to S3)
 ```
 
 ---
 
-## 5. Configurar a conta AWS (uma vez)
+## 5. Set up the AWS account (one time)
 
-> ⚠️ Estes passos são **manuais no console da AWS** porque envolvem criar conta
-> e credenciais — coisas que não dá (nem se deve) automatizar.
+> ⚠️ These steps are **manual in the AWS console** because they involve creating
+> an account and credentials — things you cannot (and should not) automate.
 
-### 5.1. Criar a conta AWS
+### 5.1. Create the AWS account
 
-1. Acesse <https://aws.amazon.com/free> e crie uma conta.
-2. Será pedido um cartão de crédito (a AWS faz uma cobrança simbólica de
-   verificação e estorna). Ficando no free tier, **não há cobrança**.
-3. Ative um **alerta de billing** para dormir tranquilo:
-   - Console → *Billing and Cost Management* → *Budgets* → criar um budget de,
-     por exemplo, **US$ 1,00**, com alerta por e-mail. Assim, se algo sair do
-     free tier, você é avisado na hora.
+1. Go to <https://aws.amazon.com/free> and create an account.
+2. A credit card will be requested (AWS makes a symbolic verification charge and
+   refunds it). Staying within the free tier, **there is no charge**.
+3. Enable a **billing alert** for peace of mind:
+   - Console → *Billing and Cost Management* → *Budgets* → create a budget of,
+     for example, **US$ 1.00**, with email alerts. That way, if anything goes
+     outside the free tier, you are notified immediately.
 
-### 5.2. Criar um usuário IAM para uso local (não use a conta root!)
+### 5.2. Create an IAM user for local use (don't use the root account!)
 
-A conta "root" (o e-mail que criou a conta) é poderosa demais para o dia a dia.
-Crie um usuário separado:
+The "root" account (the email that created the account) is too powerful for
+day-to-day use. Create a separate user:
 
 1. Console → **IAM** → *Users* → *Create user*.
-2. Nome: `terraform-admin`.
-3. Em permissões, anexe a policy gerenciada **AdministratorAccess**
-   (é só para você rodar o Terraform da sua máquina; o deploy no CI usará uma
-   role bem mais restrita).
-4. Depois de criado: aba *Security credentials* → *Create access key* →
-   escolha *Command Line Interface (CLI)* → copie o **Access key ID** e o
+2. Name: `terraform-admin`.
+3. For permissions, attach the managed policy **AdministratorAccess**
+   (this is just for you to run Terraform from your machine; the CI deploy will
+   use a much more restricted role).
+4. After creation: *Security credentials* tab → *Create access key* →
+   choose *Command Line Interface (CLI)* → copy the **Access key ID** and the
    **Secret access key**.
 
-### 5.3. Configurar a AWS CLI na sua máquina
+### 5.3. Configure the AWS CLI on your machine
 
 ```bash
 aws configure
-# AWS Access Key ID:     <cole aqui>
-# AWS Secret Access Key: <cole aqui>
+# AWS Access Key ID:     <paste here>
+# AWS Secret Access Key: <paste here>
 # Default region name:   us-east-1
 # Default output format: json
 ```
 
-Teste:
+Test:
 
 ```bash
 aws sts get-caller-identity
-# deve mostrar seu Account ID e o ARN do usuário terraform-admin
+# should show your Account ID and the ARN of the terraform-admin user
 ```
 
 ---
 
-## 6. Bootstrap — criar o "cofre" do estado do Terraform
+## 6. Bootstrap — create the Terraform state "vault"
 
-O Terraform guarda o que ele criou num arquivo de **estado** (`tfstate`).
-Em projetos sérios esse arquivo fica num bucket S3 (compartilhável, versionado)
-com um **lock** no DynamoDB (pra dois `apply` não rodarem juntos).
+Terraform stores what it created in a **state** file (`tfstate`).
+In serious projects this file lives in an S3 bucket (shareable, versioned)
+with a **lock** in DynamoDB (so two `apply` runs don't run at the same time).
 
-Mas há um problema do ovo e da galinha: *quem cria esse bucket?* O módulo
-`bootstrap` resolve isso — ele cria o bucket + a tabela usando **estado local**.
+But there's a chicken-and-egg problem: *who creates that bucket?* The
+`bootstrap` module solves this — it creates the bucket + the table using
+**local state**.
 
 ```bash
 cd terraform/bootstrap
 
-terraform init      # baixa o provider AWS
-terraform plan      # mostra o que será criado (bucket + tabela)
-terraform apply     # digite "yes" para confirmar
+terraform init      # downloads the AWS provider
+terraform plan      # shows what will be created (bucket + table)
+terraform apply     # type "yes" to confirm
 ```
 
-Saída esperada (outputs):
+Expected output (outputs):
 
 ```
 state_bucket_name = "luizbortoluzzi-terraform-trainning-tfstate"
 lock_table_name   = "terraform-trainning-lock"
 ```
 
-> 🔴 **O nome do bucket precisa ser único no mundo todo.** Se der erro de nome
-> já em uso, edite `state_bucket_name` em
-> [`terraform/bootstrap/variables.tf`](terraform/bootstrap/variables.tf) **e**
-> o `bucket` em [`terraform/infra/backend.tf`](terraform/infra/backend.tf) para
-> o mesmo valor.
+> 🔴 **The bucket name must be globally unique.** If you get a name-already-in-use
+> error, edit `state_bucket_name` in
+> [`terraform/bootstrap/variables.tf`](terraform/bootstrap/variables.tf) **and**
+> the `bucket` in [`terraform/infra/backend.tf`](terraform/infra/backend.tf) to
+> the same value.
 
 ---
 
 ## 7. Infra — S3 + CloudFront + OIDC
 
-Agora o módulo principal. Ele usa o **backend remoto** (o bucket que acabamos de
-criar) — repare em [`terraform/infra/backend.tf`](terraform/infra/backend.tf).
+Now the main module. It uses the **remote backend** (the bucket we just
+created) — see [`terraform/infra/backend.tf`](terraform/infra/backend.tf).
 
 ```bash
-cd ../infra      # (a partir de terraform/bootstrap)
+cd ../infra      # (from terraform/bootstrap)
 
-terraform init   # conecta no backend S3; vai dizer "Successfully configured the backend s3"
-terraform plan   # revise o que será criado
-terraform apply  # "yes" para confirmar
+terraform init   # connects to the S3 backend; it will say "Successfully configured the backend s3"
+terraform plan   # review what will be created
+terraform apply  # "yes" to confirm
 ```
 
-Isso cria:
+This creates:
 
-- O **bucket S3 do site** (privado);
-- A **distribuição CloudFront** com HTTPS;
-- O **OAC** e a **bucket policy** ligando os dois;
-- O **provedor OIDC do GitHub** e a **role IAM** de deploy.
+- The **site S3 bucket** (private);
+- The **CloudFront distribution** with HTTPS;
+- The **OAC** and the **bucket policy** linking the two;
+- The **GitHub OIDC provider** and the deploy **IAM role**.
 
-> ⏱️ O CloudFront leva ~3–5 minutos para "deployar" na primeira vez. É normal.
+> ⏱️ CloudFront takes ~3–5 minutes to "deploy" the first time. This is normal.
 
-Anote os **outputs** (vamos usá-los no GitHub):
+Note down the **outputs** (we'll use them in GitHub):
 
 ```
 cloudfront_url             = "https://d123abc.cloudfront.net"
@@ -239,28 +261,28 @@ site_bucket_name           = "luizbortoluzzi-terraform-trainning"
 github_actions_role_arn    = "arn:aws:iam::123456789012:role/terraform-trainning-github-actions"
 ```
 
-Para reexibir depois: `terraform output`.
+To display them again later: `terraform output`.
 
 ---
 
-## 8. Conectar o GitHub Actions à AWS (OIDC)
+## 8. Connect GitHub Actions to AWS (OIDC)
 
-O workflow de deploy precisa saber 4 coisas. Elas **não são secretas** (são só
-identificadores), então usamos **Repository Variables** (não secrets).
+The deploy workflow needs to know 4 things. They are **not secret** (they're just
+identifiers), so we use **Repository Variables** (not secrets).
 
-### Pela interface do GitHub
+### Through the GitHub interface
 
-Repositório → **Settings** → *Secrets and variables* → **Actions** → aba
-**Variables** → *New repository variable*. Crie as quatro:
+Repository → **Settings** → *Secrets and variables* → **Actions** → **Variables**
+tab → *New repository variable*. Create all four:
 
-| Nome da variável | Valor (vem dos outputs do Terraform) |
+| Variable name | Value (comes from the Terraform outputs) |
 |---|---|
 | `AWS_REGION` | `us-east-1` |
-| `AWS_ROLE_ARN` | o `github_actions_role_arn` |
-| `AWS_S3_BUCKET` | o `site_bucket_name` |
-| `AWS_CLOUDFRONT_DISTRIBUTION_ID` | o `cloudfront_distribution_id` |
+| `AWS_ROLE_ARN` | the `github_actions_role_arn` |
+| `AWS_S3_BUCKET` | the `site_bucket_name` |
+| `AWS_CLOUDFRONT_DISTRIBUTION_ID` | the `cloudfront_distribution_id` |
 
-### Ou pela linha de comando (gh CLI)
+### Or via the command line (gh CLI)
 
 ```bash
 gh variable set AWS_REGION                     --body "us-east-1"
@@ -271,94 +293,94 @@ gh variable set AWS_CLOUDFRONT_DISTRIBUTION_ID --body "$(cd terraform/infra && t
 
 ---
 
-## 9. Primeiro deploy 🚀
+## 9. First deploy 🚀
 
-Com a infra de pé e as variáveis configuradas:
+With the infra up and the variables configured:
 
 ```bash
 git add .
-git commit -m "feat: site, infra Terraform e CI/CD"
+git commit -m "feat: site, Terraform infra and CI/CD"
 git push origin main
 ```
 
-Vá em **Actions** no GitHub e acompanhe o workflow **Deploy**. Ele vai:
+Go to **Actions** on GitHub and follow the **Deploy** workflow. It will:
 
-1. Buildar o Next.js (`web/out`);
-2. Assumir a role via OIDC (sem nenhuma chave guardada);
-3. `aws s3 sync` para o bucket;
-4. Invalidar o cache do CloudFront.
+1. Build Next.js (`web/out`);
+2. Assume the role via OIDC (without any stored key);
+3. `aws s3 sync` to the bucket;
+4. Invalidate the CloudFront cache.
 
-Quando terminar, abra a `cloudfront_url`. **Site no ar!** 🎉
+When it finishes, open the `cloudfront_url`. **Site is live!** 🎉
 
-> ⚠️ **Ordem importa:** rode o `terraform apply` da infra e configure as
-> variáveis **antes** de depender do deploy. Se você der push na main antes da
-> role existir, o job de deploy falha — é só rodar de novo depois (botão
-> *Re-run jobs*).
-
----
-
-## 10. Como funciona o CI/CD (os dois workflows)
-
-### `.github/workflows/ci.yml` — validação
-Roda em **Pull Requests** e branches diferentes de `main`. Garante que:
-- o site builda e passa no lint;
-- o Terraform está formatado (`fmt -check`) e válido (`validate`).
-
-### `.github/workflows/deploy.yml` — publicação
-Roda no **push para `main`**. Faz build + sync + invalidação, autenticando via
-**OIDC** (note o bloco `permissions: id-token: write`, obrigatório).
-
-> 🔐 **Por que OIDC e não uma access key nos secrets?** Uma access key é uma
-> credencial de longa duração: se vazar, vale até alguém revogar. Com OIDC, o
-> GitHub gera um token de curtíssima duração a cada execução e a AWS o troca por
-> credenciais temporárias. Nada sensível fica guardado no repositório.
+> ⚠️ **Order matters:** run the infra `terraform apply` and configure the
+> variables **before** relying on the deploy. If you push to main before the
+> role exists, the deploy job fails — just run it again afterwards (the
+> *Re-run jobs* button).
 
 ---
 
-## 11. Custos & free tier
+## 10. How the CI/CD works (the two workflows)
 
-Para um portfólio com pouco tráfego, o custo esperado é **US$ 0,00**:
+### `.github/workflows/ci.yml` — validation
+Runs on **Pull Requests** and branches other than `main`. It ensures that:
+- the site builds and passes lint;
+- Terraform is formatted (`fmt -check`) and valid (`validate`).
 
-- **CloudFront:** 1 TB/mês de saída grátis (permanente). Um site pequeno usa
-  alguns MB.
-- **S3:** poucos MB armazenados; requests irrisórios.
-- **DynamoDB:** usado só durante `plan`/`apply`; muito abaixo do free tier.
-- **IAM / OIDC / CloudFront Functions:** sem custo.
+### `.github/workflows/deploy.yml` — publishing
+Runs on **push to `main`**. It does build + sync + invalidation, authenticating
+via **OIDC** (note the `permissions: id-token: write` block, which is required).
 
-✅ **Recomendado:** mantenha o **AWS Budget** do passo 5.1 ativo.
+> 🔐 **Why OIDC and not an access key in secrets?** An access key is a
+> long-lived credential: if it leaks, it's valid until someone revokes it. With
+> OIDC, GitHub generates a very short-lived token on each run and AWS exchanges
+> it for temporary credentials. Nothing sensitive is stored in the repository.
 
 ---
 
-## 12. Atualizar o site
+## 11. Costs & free tier
 
-Basta editar o código em `web/` e dar push na `main`. O pipeline cuida do resto.
+For a portfolio with little traffic, the expected cost is **US$ 0.00**:
+
+- **CloudFront:** 1 TB/month of egress free (permanent). A small site uses
+  a few MB.
+- **S3:** a few MB stored; negligible requests.
+- **DynamoDB:** used only during `plan`/`apply`; well below the free tier.
+- **IAM / OIDC / CloudFront Functions:** no cost.
+
+✅ **Recommended:** keep the **AWS Budget** from step 5.1 active.
+
+---
+
+## 12. Update the site
+
+Just edit the code in `web/` and push to `main`. The pipeline takes care of the rest.
 
 ```bash
-# edite web/src/app/page.tsx ...
-git commit -am "conteúdo novo"
-git push origin main          # dispara o deploy automático
+# edit web/src/app/page.tsx ...
+git commit -am "new content"
+git push origin main          # triggers the automatic deploy
 ```
 
-Para mudar **infra** (ex.: política de cache do CloudFront), edite os `.tf` e
-rode `terraform apply` em `terraform/infra` (ou crie um workflow de
-`terraform plan` em PRs — uma boa evolução futura).
+To change the **infra** (e.g. CloudFront cache policy), edit the `.tf` files and
+run `terraform apply` in `terraform/infra` (or create a `terraform plan` workflow
+on PRs — a good future improvement).
 
 ---
 
-## 13. Destruir tudo (evitar qualquer cobrança)
+## 13. Destroy everything (avoid any charges)
 
-Na ordem inversa da criação:
+In the reverse order of creation:
 
 ```bash
-# 1) Esvaziar o bucket do site (sync --delete não apaga o bucket)
+# 1) Empty the site bucket (sync --delete doesn't delete the bucket)
 aws s3 rm "s3://$(cd terraform/infra && terraform output -raw site_bucket_name)" --recursive
 
-# 2) Destruir a infra
+# 2) Destroy the infra
 cd terraform/infra && terraform destroy
 
-# 3) Destruir o bootstrap
-#    Obs: o bucket de estado tem prevent_destroy=true. Para removê-lo, primeiro
-#    edite main.tf tirando o lifecycle, ou esvazie e apague pelo console.
+# 3) Destroy the bootstrap
+#    Note: the state bucket has prevent_destroy=true. To remove it, first
+#    edit main.tf removing the lifecycle, or empty and delete it via the console.
 cd ../bootstrap && terraform destroy
 ```
 
@@ -366,22 +388,21 @@ cd ../bootstrap && terraform destroy
 
 ## 14. Troubleshooting
 
-| Sintoma | Causa provável | Solução |
+| Symptom | Likely cause | Solution |
 |---|---|---|
-| `BucketAlreadyExists` no bootstrap | Nome de bucket já usado por outra conta | Troque `state_bucket_name` e o `bucket` do `backend.tf` |
-| `Error: Failed to get existing workspaces ... AccessDenied` no `init` da infra | Backend S3 não existe ainda / credencial errada | Rode o bootstrap primeiro; confira `aws sts get-caller-identity` |
-| Deploy falha em "Configurar credenciais AWS" | Role OIDC não existe ou `AWS_ROLE_ARN` errado | Rode `terraform apply` na infra e revise as variáveis do repo |
-| `Not authorized to perform sts:AssumeRoleWithWebIdentity` | `sub` da trust policy não bate com o repo | Confira `github_owner`/`github_repo` em `variables.tf` |
-| Site abre mas mostra XML/AccessDenied | Cache antigo / OAC ainda propagando | Aguarde e invalide o cache (`/*`) |
-| Página 404 em subrota | Função de rewrite não associada | Confirme `function_association` no `cloudfront.tf` |
+| `BucketAlreadyExists` on bootstrap | Bucket name already used by another account | Change `state_bucket_name` and the `bucket` in `backend.tf` |
+| `Error: Failed to get existing workspaces ... AccessDenied` on the infra `init` | S3 backend doesn't exist yet / wrong credential | Run the bootstrap first; check `aws sts get-caller-identity` |
+| Deploy fails at "Configure AWS credentials" | OIDC role doesn't exist or wrong `AWS_ROLE_ARN` | Run `terraform apply` on the infra and review the repo variables |
+| `Not authorized to perform sts:AssumeRoleWithWebIdentity` | The trust policy `sub` doesn't match the repo | Check `github_owner`/`github_repo` in `variables.tf` |
+| Site opens but shows XML/AccessDenied | Stale cache / OAC still propagating | Wait and invalidate the cache (`/*`) |
+| 404 page on a subroute | Rewrite function not associated | Confirm `function_association` in `cloudfront.tf` |
 
 ---
 
-## 15. Próximos passos (ideias para evoluir o portfólio)
+## 15. Next steps (ideas to evolve the portfolio)
 
-- [ ] Workflow de `terraform plan` comentando o diff direto no PR.
-- [ ] Domínio próprio + ACM (certificado) + Route 53.
-- [ ] Headers de cache otimizados (assets imutáveis vs. HTML sempre revalidado).
-- [ ] Ambiente de `staging` separado (workspaces ou outra pasta).
-- [ ] `terraform test` ou checagens com `tflint` / `checkov` no CI.
-```
+- [ ] A `terraform plan` workflow commenting the diff directly on the PR.
+- [ ] Custom domain + ACM (certificate) + Route 53.
+- [ ] Optimized cache headers (immutable assets vs. always-revalidated HTML).
+- [ ] A separate `staging` environment (workspaces or another folder).
+- [ ] `terraform test` or checks with `tflint` / `checkov` in CI.

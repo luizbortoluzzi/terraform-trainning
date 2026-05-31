@@ -1,23 +1,23 @@
 variable "aws_region" {
-  description = "Região AWS onde o bucket de estado e a tabela de lock serão criados."
+  description = "AWS region where the state bucket and lock table will be created."
   type        = string
   default     = "us-east-1"
 }
 
 variable "project_name" {
-  description = "Nome do projeto, usado em tags."
+  description = "Project name, used in tags."
   type        = string
   default     = "terraform-trainning"
 }
 
 variable "state_bucket_name" {
-  description = "Nome do bucket S3 que guarda o tfstate. PRECISA ser único no mundo todo."
+  description = "Name of the S3 bucket that holds the tfstate. MUST be globally unique."
   type        = string
   default     = "luizbortoluzzi-terraform-trainning-tfstate"
 }
 
 variable "lock_table_name" {
-  description = "Nome da tabela DynamoDB usada para lock do estado."
+  description = "Name of the DynamoDB table used for state locking."
   type        = string
   default     = "terraform-trainning-lock"
 }

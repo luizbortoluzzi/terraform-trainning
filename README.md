@@ -1,21 +1,22 @@
-# Portfólio — Next.js na AWS com Terraform + CI/CD
+# Portfolio — Next.js on AWS with Terraform + CI/CD
 
-Site estático (Next.js + TypeScript) hospedado na AWS com infraestrutura 100%
-em **Terraform** e deploy contínuo via **GitHub Actions** — tudo dentro do
-**free tier**.
+Static site (Next.js + TypeScript) hosted on AWS with 100% of the infrastructure
+in **Terraform** and continuous deployment via **GitHub Actions** — all within
+the **free tier**.
 
-> 📘 O passo a passo completo (conta AWS, bootstrap, infra, deploy, custos) está
-> em **[DOCUMENTATION.md](DOCUMENTATION.md)**.
+> 📘 The complete step-by-step guide (AWS account, bootstrap, infra, deploy, costs)
+> is in **[DOCUMENTATION.md](DOCUMENTATION.md)**.
 
 ## Stack
 
-- **Next.js + TypeScript** — site exportado como estático (`output: "export"`)
-- **AWS S3** — bucket privado de origem
-- **AWS CloudFront** — CDN global com HTTPS grátis (acesso via OAC)
-- **Terraform** — toda a infra como código (backend remoto S3 + lock DynamoDB)
-- **GitHub Actions** — CI (build/lint/validate) e CD (deploy via OIDC, sem chave fixa)
+- **Next.js + TypeScript** — site exported as static (`output: "export"`)
+- **next-intl** — bilingual site (English + Portuguese) via a `[locale]` route segment
+- **AWS S3** — private origin bucket
+- **AWS CloudFront** — global CDN with free HTTPS (access via OAC)
+- **Terraform** — all infrastructure as code (remote S3 backend + DynamoDB lock)
+- **GitHub Actions** — CI (build/lint/validate) and CD (deploy via OIDC, no static key)
 
-## Arquitetura
+## Architecture
 
 ```
 git push main → GitHub Actions → (OIDC) → AWS
@@ -23,19 +24,19 @@ git push main → GitHub Actions → (OIDC) → AWS
               build Next.js (out/)
                      │
                      ▼
-        S3 (privado) ◀── CloudFront (CDN + HTTPS) ──▶ usuário
+        S3 (private) ◀── CloudFront (CDN + HTTPS) ──▶ user
 ```
 
-## Estrutura
+## Structure
 
 ```
-web/                     # aplicação Next.js
-terraform/bootstrap/     # bucket de estado + lock DynamoDB (roda 1x)
+web/                     # Next.js application
+terraform/bootstrap/     # state bucket + DynamoDB lock (runs once)
 terraform/infra/         # S3 + CloudFront + OAC + OIDC/IAM
-.github/workflows/       # ci.yml e deploy.yml
+.github/workflows/       # ci.yml and deploy.yml
 ```
 
-## Rodar o site localmente
+## Run the site locally
 
 ```bash
 cd web
@@ -43,12 +44,12 @@ npm install
 npm run dev      # http://localhost:3000
 ```
 
-## Subir a infra (resumo)
+## Provision the infra (summary)
 
 ```bash
 cd terraform/bootstrap && terraform init && terraform apply
 cd ../infra            && terraform init && terraform apply
-# configure as Repository Variables no GitHub e dê push na main
+# configure the Repository Variables on GitHub and push to main
 ```
 
-Detalhes em [DOCUMENTATION.md](DOCUMENTATION.md).
+Details in [DOCUMENTATION.md](DOCUMENTATION.md).

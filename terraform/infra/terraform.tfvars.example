@@ -1,8 +1,8 @@
-# Copie para terraform.tfvars e ajuste se quiser sobrescrever os defaults.
-# (terraform.tfvars está no .gitignore e NÃO vai para o repositório.)
+# Copy to terraform.tfvars and adjust if you want to override the defaults.
+# (terraform.tfvars is in .gitignore and will NOT go to the repository.)
 
 aws_region       = "us-east-1"
 project_name     = "terraform-trainning"
-site_bucket_name = "luizbortoluzzi-terraform-trainning" # precisa ser único no mundo
+site_bucket_name = "luizbortoluzzi-terraform-trainning" # must be globally unique
 github_owner     = "luizbortoluzzi"
 github_repo      = "terraform-trainning"

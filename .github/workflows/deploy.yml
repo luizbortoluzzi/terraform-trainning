@@ -1,29 +1,29 @@
 name: Deploy
 
-# Publica o site sempre que algo entra na main (ou manualmente pelo botão
-# "Run workflow" na aba Actions).
+# Publishes the site whenever something lands on main (or manually via the
+# "Run workflow" button on the Actions tab).
 on:
   push:
     branches:
       - main
   workflow_dispatch:
 
-# Permissões do token do job:
-#   id-token: write  -> OBRIGATÓRIO para o OIDC funcionar (gera o token que a
-#                       AWS troca por credenciais temporárias).
-#   contents: read   -> ler o código do repositório.
+# Job token permissions:
+#   id-token: write  -> REQUIRED for OIDC to work (generates the token that AWS
+#                       exchanges for temporary credentials).
+#   contents: read   -> read the repository code.
 permissions:
   id-token: write
   contents: read
 
-# Evita dois deploys simultâneos pisando um no outro.
+# Avoids two deploys running at the same time and stepping on each other.
 concurrency:
   group: deploy-production
   cancel-in-progress: false
 
 jobs:
   deploy:
-    name: Build e publicar na AWS
+    name: Build and publish to AWS
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,29 +34,29 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
 
-      - name: Instalar dependências
+      - name: Install dependencies
         working-directory: web
         run: npm ci
 
-      - name: Build (export estático -> web/out)
+      - name: Build (static export -> web/out)
         working-directory: web
         run: npm run build
 
-      # Autentica na AWS via OIDC. Não há chave fixa: o GitHub gera um token e
-      # a AWS devolve credenciais temporárias para assumir a role.
-      - name: Configurar credenciais AWS (OIDC)
+      # Authenticates to AWS via OIDC. There is no static key: GitHub generates a
+      # token and AWS returns temporary credentials to assume the role.
+      - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      # Sobe os arquivos para o S3. --delete remove do bucket o que não existe
-      # mais no build (mantém o bucket espelhando exatamente a pasta out/).
-      - name: Sincronizar arquivos no S3
+      # Uploads the files to S3. --delete removes from the bucket whatever no
+      # longer exists in the build (keeps the bucket mirroring the out/ folder).
+      - name: Sync files to S3
         run: aws s3 sync web/out "s3://${{ vars.AWS_S3_BUCKET }}" --delete
 
-      # Limpa o cache do CloudFront para servir a versão nova imediatamente.
-      - name: Invalidar cache do CloudFront
+      # Clears the CloudFront cache to serve the new version immediately.
+      - name: Invalidate CloudFront cache
         run: |
           aws cloudfront create-invalidation \
             --distribution-id "${{ vars.AWS_CLOUDFRONT_DISTRIBUTION_ID }}" \

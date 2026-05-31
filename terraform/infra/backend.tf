@@ -1,10 +1,10 @@
 ###############################################################################
-# BACKEND REMOTO
+# REMOTE BACKEND
 #
-# Diz ao Terraform para guardar o estado no bucket S3 criado pelo bootstrap,
-# com lock via DynamoDB. ATENÇÃO: os valores aqui NÃO aceitam variáveis
-# (limitação do Terraform), então precisam bater exatamente com o que o
-# bootstrap criou.
+# Tells Terraform to store the state in the S3 bucket created by the bootstrap,
+# with locking via DynamoDB. NOTE: the values here do NOT accept variables
+# (a Terraform limitation), so they must match exactly what the bootstrap
+# created.
 ###############################################################################
 
 terraform {

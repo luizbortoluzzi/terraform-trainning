@@ -1,0 +1,35 @@
+{
+  "metadata": {
+    "title": "Luiz Bortoluzzi — Terraform + AWS Portfolio",
+    "description": "Static Next.js site, provisioned on AWS with Terraform (S3 + CloudFront) and continuously deployed via GitHub Actions."
+  },
+  "home": {
+    "badge": "Portfolio · Infra on AWS",
+    "title": "Hi, I'm Luiz 👋",
+    "intro": "This simple page is just the tip of the iceberg. What matters is behind the scenes: it is a static Next.js site, provisioned entirely on AWS with <strong>Terraform</strong> and published by a <strong>CI/CD pipeline on GitHub Actions</strong> — all within the free tier.",
+    "stackHeading": "Stack",
+    "stack": [
+      { "label": "Next.js", "detail": "Static site (output: export)" },
+      { "label": "TypeScript", "detail": "End-to-end typing" },
+      { "label": "Terraform", "detail": "Infrastructure as code" },
+      { "label": "AWS S3", "detail": "Private origin bucket" },
+      { "label": "AWS CloudFront", "detail": "Global CDN + HTTPS" },
+      { "label": "GitHub Actions", "detail": "CI/CD with OIDC (no static keys)" }
+    ],
+    "flowHeading": "How the deploy happens",
+    "flow": [
+      "git push to the main branch",
+      "GitHub Actions builds Next.js (static export)",
+      "Authenticates to AWS via OIDC (temporary credentials)",
+      "Syncs the files to the S3 bucket",
+      "Invalidates the CloudFront cache",
+      "Live in seconds 🚀"
+    ],
+    "sourceLink": "Source code on GitHub →"
+  },
+  "languageSwitcher": {
+    "label": "Language",
+    "en": "EN",
+    "pt": "PT"
+  }
+}
